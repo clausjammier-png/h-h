@@ -1,0 +1,42 @@
+name: Process PDFs
+ 
+on:
+  workflow_dispatch:
+ 
+jobs:
+  process-pdfs:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+ 
+      - name: Install qpdf
+        run: sudo apt-get update -y && sudo apt-get install -y qpdf
+ 
+      - name: Create PDF processor
+        run: |
+          cat > process-pdfs.sh <<'EOF'
+          #!/usr/bin/env bash
+          mkdir -p processed
+          shopt -s nullglob
+          for file in *.pdf; do
+            echo "Processing: $file"
+            qpdf --compress-streams=y --object-streams=generate \
+                 --optimize-images --jpeg-quality=35 \
+                 --oi-min-width=1 --oi-min-height=1 --oi-min-area=1 \
+                 "$file" "processed/$file"
+            echo "  $(du -h "$file" | cut -f1) -> $(du -h "processed/$file" | cut -f1)"
+          done
+          EOF
+          chmod +x process-pdfs.sh
+ 
+      - name: Process PDFs
+        run: ./process-pdfs.sh
+ 
+      - name: Upload processed PDFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-pdfs
+          path: processed/
+ 
